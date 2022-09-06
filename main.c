@@ -201,9 +201,9 @@ void _dealerPlay(shoe_t shoe, hand_t hand, float* prob, float inputProb)
                     prob[ max(hv,sv)-17 ] += inputProb * cp;
             } else {
                 if (inputProb == 0)
-                    dealerPlay(sh, h, prob, cp);
+                    _dealerPlay(sh, h, prob, cp);
                 else
-                    dealerPlay(sh, h, prob, inputProb * cp);
+                    _dealerPlay(sh, h, prob, inputProb * cp);
             }
         }
     }
@@ -252,7 +252,7 @@ float playerDouble(shoe_t shoe, hand_t playerHand, hand_t dealerHand)
 
             float *dprob = calloc(10, sizeof(float));
 
-            dealerPlay(sh, dh, dprob, 0);
+            _dealerPlay(sh, dh, dprob, 0);
 
             for (int i = 0; i < 10; ++i) {
                 int dhv = i+17;
@@ -323,7 +323,7 @@ float playerHit(shoe_t shoe, hand_t playerHand, hand_t dealerHand)
             int hv = v/100;
             v = max(v/100, v%100);
 
-            if (v == 21 || (sv >= 19) || (hv >= 17 && hv < 21)) {
+            if (v == 21) {
                 float *dprob = calloc(10, sizeof(float));
                 dealerPlay(sh, dh, dprob, 0);
                 cev[c] = 0;
@@ -471,7 +471,7 @@ void initGame(game_t* g)
 int main()
 {
     shoe_t shoe;
-    initShoe(&shoe, 8);
+    initShoe(&shoe, 12);
 
     game_t game;
     initGame(&game);
@@ -482,21 +482,21 @@ int main()
 //    h.cards[4] = 0;
 //    printf("value: %d\n", handValue(h));
 
-    handDrawCard(&(game.dealerHand), &shoe, 1);
+    handDrawCard(&(game.dealerHand), &shoe, 9);
 
-    handDrawCard(&(game.playerHands[0]), &shoe, 0);
-    handDrawCard(&(game.playerHands[0]), &shoe, 0);
+    handDrawCard(&(game.playerHands[0]), &shoe, 6);
+    handDrawCard(&(game.playerHands[0]), &shoe, 9);
 //    handDrawCard(&(game.dealerHand), &shoe, 9);
 
 
     float standEV = playerStand(shoe, game.playerHands[0], game.dealerHand);
-    printf("%.8f\n", standEV);
+    printf("STAND: %.8f\n", standEV);
 
     float hitEV = playerHit(shoe, game.playerHands[0], game.dealerHand);
-    printf("%.8f\n", hitEV);
+    printf("HIT: %.8f\n", hitEV);
 
     float doubleEV = playerDouble(shoe, game.playerHands[0], game.dealerHand);
-    printf("%.8f\n", doubleEV);
+    printf("DOUBLE: %.8f\n", doubleEV);
 
 
 //    handDrawCard(&(game.dealerHand), &shoe, 2);
