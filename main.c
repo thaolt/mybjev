@@ -250,21 +250,22 @@ float playerDouble(shoe_t shoe, hand_t playerHand, hand_t dealerHand)
             int v = handValue(ph);
             v = max(v/100, v%100);
 
-            float *dprob = calloc(10, sizeof(float));
-
-            _dealerPlay(sh, dh, dprob, 0);
-
-            for (int i = 0; i < 10; ++i) {
-                int dhv = i+17;
-                if (v > dhv || dhv > 21) {
-                    ev[c] += 2 * dprob[i];
-                } else if (v < dhv) {
-                    ev[c] += -2 * dprob[i];
+            if (v > 21) {
+                ev[c] = -2;
+            } else {
+                float *dprob = calloc(10, sizeof(float));
+                _dealerPlay(sh, dh, dprob, 0);
+                for (int i = 0; i < 10; ++i) {
+                    int dhv = i+17;
+                    if (v > dhv || dhv > 21) {
+                        ev[c] += 2 * dprob[i];
+                    } else if (v < dhv) {
+                        ev[c] += -2 * dprob[i];
+                    }
                 }
+                free(dprob);
             }
             ev[c] *= cp;
-
-            free(dprob);
         }
     }
 
