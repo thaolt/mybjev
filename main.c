@@ -145,6 +145,10 @@ int max(int a, int b) {
     return a>b?a:b;
 }
 
+float maxf(float a, float b) {
+    return a>b?a:b;
+}
+
 float favg(float *a, int l)
 {
     float r = (float) a[0];
@@ -320,8 +324,6 @@ float playerHit(shoe_t shoe, hand_t playerHand, hand_t dealerHand)
             float cp = (float)sh.cards[c]/sh.left;
             handDrawCard(&ph, &sh, c);
             int v = handValue(ph);
-            int sv = v%100;
-            int hv = v/100;
             v = max(v/100, v%100);
 
             if (v == 21) {
@@ -342,7 +344,7 @@ float playerHit(shoe_t shoe, hand_t playerHand, hand_t dealerHand)
             } else {
                 hitEV = playerHit(sh, ph, dh);
                 standEV = playerStand(sh, ph, dh);
-                cev[c] = max(hitEV, standEV);
+                cev[c] = maxf(hitEV, standEV);
             }
             cev[c] *= cp;
         }
@@ -472,7 +474,7 @@ void initGame(game_t* g)
 int main()
 {
     shoe_t shoe;
-    initShoe(&shoe, 12);
+    initShoe(&shoe, 8);
 
     game_t game;
     initGame(&game);
@@ -485,8 +487,8 @@ int main()
 
     handDrawCard(&(game.dealerHand), &shoe, 9);
 
-    handDrawCard(&(game.playerHands[0]), &shoe, 6);
-    handDrawCard(&(game.playerHands[0]), &shoe, 9);
+    handDrawCard(&(game.playerHands[0]), &shoe, 1);
+    handDrawCard(&(game.playerHands[0]), &shoe, 2);
 //    handDrawCard(&(game.dealerHand), &shoe, 9);
 
 
