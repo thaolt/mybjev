@@ -39,9 +39,69 @@ typedef struct {
     int max_splits;
 } rules_t;
 
+//dealerCacheIndex
+//dealerCacheData
+
+typedef struct {
+    char **indexes;
+    float **dprob;
+    size_t len;
+} dealerCache_t;
+
+dealerCache_t dealerCache;
+
 void dealerPlay(shoe_t shoe, hand_t hand, float* prob, float inputProb);
+void _dealerPlay(shoe_t shoe, hand_t hand, float* prob, float inputProb);
 
+void initCache()
+{
 
+}
+
+void cacheAdd(char * key, float *prob)
+{
+    if (dealerCache.len == 0) {
+        dealerCache.indexes = calloc(1, sizeof(char*));
+        dealerCache.dprob = calloc(1, sizeof(float*));
+    } else {
+        char **nindexes;
+        nindexes = reallocarray(dealerCache.indexes, dealerCache.len + 1, sizeof(char*));
+//        if (nindexes != dealerCache.indexes) free(dealerCache.indexes);
+        dealerCache.indexes = nindexes;
+        float **ndprob;
+        ndprob = reallocarray(dealerCache.dprob, dealerCache.len + 1, sizeof(float*));
+//        if (ndprob != dealerCache.dprob) free(dealerCache.dprob);
+        dealerCache.dprob = ndprob;
+
+    }
+
+    dealerCache.indexes[dealerCache.len] = calloc(11, sizeof(char));
+    memcpy(dealerCache.indexes[dealerCache.len], key, 11 * sizeof(char));
+    dealerCache.dprob[dealerCache.len] = calloc(10, sizeof(float));
+    memcpy(dealerCache.dprob[dealerCache.len], prob, 10 * sizeof(float));
+
+    dealerCache.len++;
+}
+
+int findCache(char* key) {
+    for (size_t i = 0; i < dealerCache.len; ++i) {
+        if (strcmp(key, dealerCache.indexes[i]) == 0) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+void destroyCache()
+{
+}
+
+void hashShoe(shoe_t shoe, char *hash) {
+    for (int i = 0; i < 10; ++i) {
+        hash[i] = shoe.cards[i]+1;
+    }
+    hash[10] = 0;
+}
 
 int sumia(int *a, int l) {
     int r = 0;
@@ -117,7 +177,7 @@ void handDrawCard(hand_t *h, shoe_t *shoe, int c) {
     shoe->left--;
 }
 
-void dealerPlay(shoe_t shoe, hand_t hand, float* prob, float inputProb)
+void _dealerPlay(shoe_t shoe, hand_t hand, float* prob, float inputProb)
 {
     int dhv = handValue(hand);
     if (dhv / 100 >= 17 || dhv % 100 >= 17) {
@@ -146,6 +206,22 @@ void dealerPlay(shoe_t shoe, hand_t hand, float* prob, float inputProb)
                     dealerPlay(sh, h, prob, inputProb * cp);
             }
         }
+    }
+}
+
+void dealerPlay(shoe_t shoe, hand_t hand, float* prob, float inputProb) {
+    if (inputProb == 0) {
+        char key[11];
+        hashShoe(shoe, key);
+        int idx = findCache(key);
+        if (idx < 0) {
+            _dealerPlay(shoe, hand, prob, inputProb);
+            cacheAdd(key, prob);
+        } else {
+            memcpy(prob, dealerCache.dprob[idx], sizeof(float) * 10);
+        }
+    } else {
+        _dealerPlay(shoe, hand, prob, inputProb);
     }
 }
 
@@ -409,8 +485,6 @@ int main()
     handDrawCard(&(game.dealerHand), &shoe, 1);
 
     handDrawCard(&(game.playerHands[0]), &shoe, 0);
-    handDrawCard(&(game.playerHands[0]), &shoe, 1);
-    handDrawCard(&(game.playerHands[0]), &shoe, 2);
     handDrawCard(&(game.playerHands[0]), &shoe, 0);
 //    handDrawCard(&(game.dealerHand), &shoe, 9);
 
@@ -420,6 +494,9 @@ int main()
 
     float hitEV = playerHit(shoe, game.playerHands[0], game.dealerHand);
     printf("%.8f\n", hitEV);
+
+    float doubleEV = playerDouble(shoe, game.playerHands[0], game.dealerHand);
+    printf("%.8f\n", doubleEV);
 
 
 //    handDrawCard(&(game.dealerHand), &shoe, 2);
