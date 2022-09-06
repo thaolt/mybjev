@@ -129,11 +129,11 @@ void dealerPlay(shoe_t shoe, hand_t hand, float* prob, float inputProb)
         if (shoe.cards[c] > 0) {
             shoe_t sh = shoe; // clone
             hand_t h = hand;
+            float cp = (float)sh.cards[c]/sh.left; // card probability
             handDrawCard(&h, &sh, c);
             int ndhv = handValue(h);
             int hv = ndhv / 100;
             int sv = ndhv % 100;
-            float cp = (float)(sh.cards[c]+1)/(sh.left+1); // card probability
             if (sv >= 17 || hv >= 17) {
                 if (inputProb == 0)
                     prob[ max(hv,sv)-17 ] += cp;
@@ -169,8 +169,8 @@ float playerDouble(shoe_t shoe, hand_t playerHand, hand_t dealerHand)
             shoe_t sh = shoe; // clone
             hand_t ph = playerHand;
             hand_t dh = dealerHand;
-            float cp = (float)shoe.cards[c]/shoe.left;
-            handDrawCard(&ph, &shoe, c);
+            float cp = (float)sh.cards[c]/sh.left;
+            handDrawCard(&ph, &sh, c);
             int v = handValue(ph);
             v = max(v/100, v%100);
 
@@ -182,16 +182,20 @@ float playerDouble(shoe_t shoe, hand_t playerHand, hand_t dealerHand)
                 int dhv = i+17;
                 if (v > dhv || dhv > 21) {
                     ev[c] += 2 * dprob[i];
-                } else if (v == dhv) {
-                    ev[c] += 0 * dprob[i];
-                } else { // if (v < dhv)
+                } else if (v < dhv) {
                     ev[c] += -2 * dprob[i];
                 }
+            }
+            ev[c] *= cp;
+
+            printf("\n%d:\n", v);
+            for (int i = 0; i < 10; ++i) {
+                printf("%d: %0.6f %.6f\n", i+17, dprob[i], (v > i+17 || i+17 > 21)?2 * dprob[i]:(v < i+17?-2 * dprob[i]:0));
             }
 
             free(dprob);
 
-            ev[c] *= cp;
+
         }
     }
 
@@ -296,6 +300,18 @@ float start(shoe_t shoe, game_t game) {
 }
 
 void initShoe(shoe_t * shoe, int decks) {
+//    for (int i = 0; i < 9; ++i) {
+//        shoe->cards[i] = 0;
+//    }
+//    shoe->cards[2] = 1;
+//    shoe->cards[7] = 1;
+//    shoe->cards[5] = 1;
+
+//    shoe->cards[9] = 2;
+//    shoe->cards[1] = 1;
+//    shoe->cards[3] = 1;
+
+//    shoe->left = 7;
     for (int i = 0; i < 9; ++i) {
         shoe->cards[i] = 4 * decks;
     }
@@ -321,7 +337,7 @@ void c2prob(int *cts, float *prob, int l)
 int main()
 {
     shoe_t shoe;
-    initShoe(&shoe, 12);
+    initShoe(&shoe, 8);
 
     game_t game;
     initGame(&game);
