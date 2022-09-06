@@ -8,7 +8,7 @@ enum {
     SURRENDER,
     STAND,
     HIT,
-    DOUBLE,
+    DOUBLE_DOWN,
     SPLIT
 };
 
@@ -39,8 +39,26 @@ typedef struct {
     int max_splits;
 } rules_t;
 
-void dealerPlay(shoe_t shoe, game_t game, float* prob, float inputProb);
+void dealerPlay(shoe_t shoe, hand_t hand, float* prob, float inputProb);
 
+
+
+int sumia(int *a, int l) {
+    int r = 0;
+    for (int i = 0; i < l; ++i) {
+        r += a[i];
+    }
+    return r;
+}
+
+
+float sumfa(float *a, int l) {
+    float r = 0;
+    for (int i = 0; i < l; ++i) {
+        r += a[i];
+    }
+    return r;
+}
 
 int handValue(hand_t h) {
     int na = 0; // number of aces
@@ -67,6 +85,16 @@ int max(int a, int b) {
     return a>b?a:b;
 }
 
+float favg(float *a, int l)
+{
+    float r = (float) a[0];
+    for (int i = 1; i < l; ++i) {
+        r += a[i];
+        r /= 2;
+    }
+    return r;
+}
+
 
 float compute(shoe_t shoe, game_t game) {
     return 0;
@@ -89,20 +117,20 @@ void handDrawCard(hand_t *h, shoe_t *shoe, int c) {
     shoe->left--;
 }
 
-void dealerPlay(shoe_t shoe, game_t game, float* prob, float inputProb)
+void dealerPlay(shoe_t shoe, hand_t hand, float* prob, float inputProb)
 {
-    int dhv = handValue(game.dealerHand);
+    int dhv = handValue(hand);
     if (dhv / 100 >= 17 || dhv % 100 >= 17) {
         prob[ max(dhv % 100, dhv / 100)-17 ] = 1;
         return;
     }
 
     for (int c = 0; c < 10; ++c) {
-        shoe_t sh = shoe; // clone
-        if (sh.cards[c] > 0) {
-            game_t g = game;
-            handDrawCard(&(g.dealerHand), &sh, c);
-            int ndhv = handValue(g.dealerHand);
+        if (shoe.cards[c] > 0) {
+            shoe_t sh = shoe; // clone
+            hand_t h = hand;
+            handDrawCard(&h, &sh, c);
+            int ndhv = handValue(h);
             int hv = ndhv / 100;
             int sv = ndhv % 100;
             float cp = (float)(sh.cards[c]+1)/(sh.left+1); // card probability
@@ -113,9 +141,9 @@ void dealerPlay(shoe_t shoe, game_t game, float* prob, float inputProb)
                     prob[ max(hv,sv)-17 ] += inputProb * cp;
             } else {
                 if (inputProb == 0)
-                    dealerPlay(sh, g, prob, cp);
+                    dealerPlay(sh, h, prob, cp);
                 else
-                    dealerPlay(sh, g, prob, inputProb * cp);
+                    dealerPlay(sh, h, prob, inputProb * cp);
             }
         }
     }
@@ -125,7 +153,52 @@ float playerSplits(shoe_t shoe, game_t game) {
 
 }
 
-float playerTurn(shoe_t shoe, game_t game) {
+
+/**
+ * @brief playerDouble
+ * @param shoe
+ * @param playerHand
+ * @param dealerHand
+ * @return float expected value
+ */
+float playerDouble(shoe_t shoe, hand_t playerHand, hand_t dealerHand)
+{
+    float ev[10] = {0};
+    for (int c = 0; c < 10; ++c) {
+        if (shoe.cards[c] > 0) {
+            shoe_t sh = shoe; // clone
+            hand_t ph = playerHand;
+            hand_t dh = dealerHand;
+            float cp = (float)shoe.cards[c]/shoe.left;
+            handDrawCard(&ph, &shoe, c);
+            int v = handValue(ph);
+            v = max(v/100, v%100);
+
+            float *dprob = calloc(10, sizeof(float));
+
+            dealerPlay(sh, dh, dprob, 0);
+
+            for (int i = 0; i < 10; ++i) {
+                int dhv = i+17;
+                if (v > dhv || dhv > 21) {
+                    ev[c] += 2 * dprob[i];
+                } else if (v == dhv) {
+                    ev[c] += 0 * dprob[i];
+                } else { // if (v < dhv)
+                    ev[c] += -2 * dprob[i];
+                }
+            }
+
+            free(dprob);
+
+            ev[c] *= cp;
+        }
+    }
+
+    return sumfa(ev, 10);
+}
+
+float playerPlay(shoe_t shoe, game_t game) {
     bool options[5] = {false};
     float ev = 0;
 
@@ -141,7 +214,14 @@ float playerTurn(shoe_t shoe, game_t game) {
         }
         if (a == STAND) {
             float *prob = calloc(10, sizeof(float));
-            dealerPlay(shoe, game, prob, 0);
+//            dealerPlay(shoe, game, prob, 0);
+            free(prob);
+        }
+        if (a == DOUBLE_DOWN) {
+
+        }
+        if (a == HIT) {
+
         }
     }
 
@@ -229,13 +309,6 @@ void initGame(game_t* g)
     g->playerSplits = 0;
 }
 
-int sumia(int *a, int l) {
-    int r = 0;
-    for (int i = 0; i < l; ++i) {
-        r += a[i];
-    }
-    return r;
-}
 
 void c2prob(int *cts, float *prob, int l)
 {
@@ -259,14 +332,23 @@ int main()
 //    h.cards[4] = 0;
 //    printf("value: %d\n", handValue(h));
 
-    handDrawCard(&(game.dealerHand), &shoe, 2);
+    handDrawCard(&(game.playerHands[0]), &shoe, 4);
+    handDrawCard(&(game.playerHands[0]), &shoe, 5);
+    handDrawCard(&(game.dealerHand), &shoe, 5);
 //    handDrawCard(&(game.dealerHand), &shoe, 9);
-    float *prob = calloc(10, sizeof(float));
-    dealerPlay(shoe, game, prob, 0);
 
-    for (int i = 0; i < 10; ++i) {
-        printf("%d: %.18f\n", i+17, prob[i]);
-    }
+    float doubleEV = playerDouble(shoe, game.playerHands[0], game.dealerHand);
+    printf("%.10f\n", doubleEV);
 
+//    handDrawCard(&(game.dealerHand), &shoe, 2);
+//    handDrawCard(&(game.dealerHand), &shoe, 9);
+//    float *prob = calloc(10, sizeof(float));
+//    dealerPlay(shoe, game, prob, 0);
+
+//    for (int i = 0; i < 10; ++i) {
+//        printf("%d: %.18f\n", i+17, prob[i]);
+//    }
+
+//    free(prob);
     return 0;
 }
