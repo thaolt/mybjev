@@ -327,15 +327,7 @@ float playerSplit(shoe_t shoe, hand_t hand, hand_t dealerHand, int nsplits)
     return sumfa(ev, 10) * 2;
 }
 
-
-/**
- * @brief playerDouble
- * @param shoe
- * @param playerHand
- * @param dealerHand
- * @return float expected value
- */
-float playerDouble(shoe_t shoe, hand_t playerHand, hand_t dealerHand)
+float _playerDouble(shoe_t shoe, hand_t playerHand, hand_t dealerHand)
 {
     float ev[10] = {0};
     for (int c = 0; c < 10; ++c) {
@@ -368,6 +360,44 @@ float playerDouble(shoe_t shoe, hand_t playerHand, hand_t dealerHand)
     }
 
     return sumfa(ev, 10);
+}
+
+
+/**
+ * @brief playerDouble
+ * @param shoe
+ * @param playerHand
+ * @param dealerHand
+ * @return float expected value
+ */
+float playerDouble(shoe_t shoe, hand_t playerHand, hand_t dealerHand)
+{
+    char key[15] = {0};
+    float ev = 0;
+    hashPlayerActionEV(DOUBLE_DOWN, shoe, playerHand, dealerHand, key);
+    int idx = playerCacheFind(key);
+    if (idx < 0) {
+        ev = _playerDouble(shoe, playerHand, dealerHand);
+        playerCacheAdd(key, ev);
+    } else {
+        ev = playerCache.ev[idx];
+    }
+    return ev;
+}
+
+float _playerStand(shoe_t shoe, hand_t playerHand, hand_t dealerHand)
+{
+    char key[15] = {0};
+    float ev = 0;
+    hashPlayerActionEV(STAND, shoe, playerHand, dealerHand, key);
+    int idx = playerCacheFind(key);
+    if (idx < 0) {
+        ev = _playerStand(shoe, playerHand, dealerHand);
+        playerCacheAdd(key, ev);
+    } else {
+        ev = playerCache.ev[idx];
+    }
+    return ev;
 }
 
 /**
@@ -403,6 +433,8 @@ float playerStand(shoe_t shoe, hand_t playerHand, hand_t dealerHand)
 
     return ev;
 }
+
+
 
 float _playerHit(shoe_t shoe, hand_t playerHand, hand_t dealerHand)
 {
@@ -582,7 +614,7 @@ void initGame(game_t* g)
 int main()
 {
     shoe_t shoe;
-    initShoe(&shoe, 12);
+    initShoe(&shoe, 8);
 
     game_t game;
     initGame(&game);
@@ -595,8 +627,8 @@ int main()
 
     handDrawCard(&(game.dealerHand), &shoe, 4);
 
-    handDrawCard(&(game.playerHands[0]), &shoe, 9);
-    handDrawCard(&(game.playerHands[0]), &shoe, 9);
+    handDrawCard(&(game.playerHands[0]), &shoe, 0);
+    handDrawCard(&(game.playerHands[0]), &shoe, 0);
 //    handDrawCard(&(game.dealerHand), &shoe, 9);
 
 
