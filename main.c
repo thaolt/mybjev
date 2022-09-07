@@ -3,6 +3,8 @@
 #include <math.h>
 #include <stdbool.h>
 #include <string.h>
+#include <assert.h>
+
 
 enum {
     SURRENDER,
@@ -52,13 +54,18 @@ dealerCache_t dealerCache;
 
 void dealerPlay(shoe_t shoe, hand_t hand, float* prob, float inputProb);
 void _dealerPlay(shoe_t shoe, hand_t hand, float* prob, float inputProb);
+void playerPlay(shoe_t shoe, game_t game, float *ev);
+float playerHit(shoe_t shoe, hand_t playerHand, hand_t dealerHand);
+float playerStand(shoe_t shoe, hand_t playerHand, hand_t dealerHand);
+float playerDouble(shoe_t shoe, hand_t playerHand, hand_t dealerHand);
+float playerSplit(shoe_t shoe, hand_t hand, hand_t dealerHand, int nsplits);
 
 void initCache()
 {
 
 }
 
-void cacheAdd(char * key, float *prob)
+void dealerCacheAdd(char * key, float *prob)
 {
     if (dealerCache.len == 0) {
         dealerCache.indexes = calloc(1, sizeof(char*));
@@ -83,7 +90,7 @@ void cacheAdd(char * key, float *prob)
     dealerCache.len++;
 }
 
-int findCache(char* key) {
+int dealerCacheFind(char* key) {
     for (size_t i = 0; i < dealerCache.len; ++i) {
         if (strcmp(key, dealerCache.indexes[i]) == 0) {
             return i;
@@ -159,11 +166,6 @@ float favg(float *a, int l)
     return r;
 }
 
-
-float compute(shoe_t shoe, game_t game) {
-    return 0;
-}
-
 void handAddCard(hand_t *h, int c) {
     h->cards[h->length] = c;
     h->length++;
@@ -217,10 +219,10 @@ void dealerPlay(shoe_t shoe, hand_t hand, float* prob, float inputProb) {
     if (inputProb == 0) {
         char key[11];
         hashShoe(shoe, key);
-        int idx = findCache(key);
+        int idx = dealerCacheFind(key);
         if (idx < 0) {
             _dealerPlay(shoe, hand, prob, inputProb);
-            cacheAdd(key, prob);
+            dealerCacheAdd(key, prob);
         } else {
             memcpy(prob, dealerCache.dprob[idx], sizeof(float) * 10);
         }
@@ -229,8 +231,49 @@ void dealerPlay(shoe_t shoe, hand_t hand, float* prob, float inputProb) {
     }
 }
 
-float playerSplits(shoe_t shoe, game_t game) {
+float playerSplit(shoe_t shoe, hand_t hand, hand_t dealerHand, int nsplits)
+{
+    //assert();
+    hand_t hand1;
+    hand_t hand2;
 
+    hand1.cards[0] = hand.cards[0]; hand1.length = 1;
+    hand2.cards[0] = hand.cards[1]; hand2.length = 1;
+
+    float ev[10] = {0};
+
+    for (int c = 0; c < 10; ++c) {
+        if (shoe.cards[c] > 0) {
+            shoe_t sh = shoe; // clone
+            hand_t h1 = hand1;
+            float cp = (float)sh.cards[c]/sh.left;
+            handDrawCard(&h1, &sh, c);
+            int h1v = handValue(h1);
+            h1v = max(h1v/100,h1v%100);
+            if (h1v == 21) {
+                float *dprob = calloc(10, sizeof(float));
+                dealerPlay(sh, h1, dprob, 0);
+                for (int i = 0; i < 10; ++i) {
+                    int dhv = i+17;
+                    if (h1v > dhv || dhv > 21) {
+                        ev[c] += 1 * dprob[i];
+                    }
+                }
+                free(dprob);
+            } else {
+                float standEV = playerStand(sh, h1, dealerHand);
+                float hitEV = playerHit(sh, h1, dealerHand);
+                float doubleEV = playerDouble(sh, h1, dealerHand);
+                ev[c] = maxf(maxf(standEV, hitEV), doubleEV);
+                if (c == h1.cards[0] && nsplits < 3) {
+                    float splitEV = playerSplit(sh, h1, dealerHand, nsplits + 1);
+                    ev[c] = maxf(ev[c], splitEV);
+                }
+            }
+            ev[c] *= cp;
+        }
+    }
+    return sumfa(ev, 10) * 2;
 }
 
 
@@ -258,7 +301,7 @@ float playerDouble(shoe_t shoe, hand_t playerHand, hand_t dealerHand)
                 ev[c] = -2;
             } else {
                 float *dprob = calloc(10, sizeof(float));
-                _dealerPlay(sh, dh, dprob, 0);
+                dealerPlay(sh, dh, dprob, 0);
                 for (int i = 0; i < 10; ++i) {
                     int dhv = i+17;
                     if (v > dhv || dhv > 21) {
@@ -413,7 +456,6 @@ float start(shoe_t shoe, game_t game) {
                             game.playerHands[0].cards[0],
                             game.playerHands[0].cards[1],
                             game.dealerHand.cards[0], game.dealerHand.cards[1]);
-
                 }
             }
         }
@@ -474,7 +516,7 @@ void initGame(game_t* g)
 int main()
 {
     shoe_t shoe;
-    initShoe(&shoe, 8);
+    initShoe(&shoe, 12);
 
     game_t game;
     initGame(&game);
@@ -485,10 +527,10 @@ int main()
 //    h.cards[4] = 0;
 //    printf("value: %d\n", handValue(h));
 
-    handDrawCard(&(game.dealerHand), &shoe, 9);
+    handDrawCard(&(game.dealerHand), &shoe, 8);
 
-    handDrawCard(&(game.playerHands[0]), &shoe, 1);
-    handDrawCard(&(game.playerHands[0]), &shoe, 2);
+    handDrawCard(&(game.playerHands[0]), &shoe, 8);
+    handDrawCard(&(game.playerHands[0]), &shoe, 8);
 //    handDrawCard(&(game.dealerHand), &shoe, 9);
 
 
@@ -500,6 +542,9 @@ int main()
 
     float doubleEV = playerDouble(shoe, game.playerHands[0], game.dealerHand);
     printf("DOUBLE: %.8f\n", doubleEV);
+
+    float splitEV = playerSplit(shoe, game.playerHands[0], game.dealerHand, 0);
+    printf("SPLIT: %.8f\n", splitEV);
 
 
 //    handDrawCard(&(game.dealerHand), &shoe, 2);
