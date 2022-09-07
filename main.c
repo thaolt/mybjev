@@ -52,6 +52,14 @@ typedef struct {
 
 dealerCache_t dealerCache;
 
+typedef struct {
+    char **indexes;
+    float *ev;
+    size_t len;
+} playerCache_t;
+
+playerCache_t playerCache;
+
 void dealerPlay(shoe_t shoe, hand_t hand, float* prob, float inputProb);
 void _dealerPlay(shoe_t shoe, hand_t hand, float* prob, float inputProb);
 void playerPlay(shoe_t shoe, game_t game, float *ev);
@@ -59,6 +67,7 @@ float playerHit(shoe_t shoe, hand_t playerHand, hand_t dealerHand);
 float playerStand(shoe_t shoe, hand_t playerHand, hand_t dealerHand);
 float playerDouble(shoe_t shoe, hand_t playerHand, hand_t dealerHand);
 float playerSplit(shoe_t shoe, hand_t hand, hand_t dealerHand, int nsplits);
+int handValue(hand_t h);
 
 void initCache()
 {
@@ -110,6 +119,19 @@ void hashShoe(shoe_t shoe, char *hash) {
     hash[10] = 0;
 }
 
+void hashPlayerActionEV(int action, shoe_t shoe, hand_t playerHand, hand_t dealerHand, char *hash)
+{
+    int phv = handValue(playerHand);
+    hash[0] = action + 1;
+    for (int i = 0; i < 10; ++i) {
+        hash[i+1] = shoe.cards[i]+1;
+    }
+    hash[11] = phv / 100;
+    hash[12] = (phv % 100) + 1;
+    hash[13] = dealerHand.cards[0] + 1;
+    hash[14] = 0;
+}
+
 int sumia(int *a, int l) {
     int r = 0;
     for (int i = 0; i < l; ++i) {
@@ -118,6 +140,37 @@ int sumia(int *a, int l) {
     return r;
 }
 
+
+
+void playerCacheAdd(char * key, float ev)
+{
+    if (playerCache.len == 0) {
+        playerCache.indexes = calloc(1, sizeof(char*));
+        playerCache.ev = calloc(1, sizeof(float));
+    } else {
+        char **nindexes;
+        nindexes = reallocarray(playerCache.indexes, playerCache.len + 1, sizeof(char*));
+        playerCache.indexes = nindexes;
+        float *nev;
+        nev = reallocarray(playerCache.ev, playerCache.len + 1, sizeof(float));
+        playerCache.ev = nev;
+    }
+
+    playerCache.indexes[playerCache.len] = calloc(15, sizeof(char));
+    memcpy(playerCache.indexes[playerCache.len], key, 15 * sizeof(char));
+    playerCache.ev[playerCache.len] = ev;
+
+    playerCache.len++;
+}
+
+int playerCacheFind(char* key) {
+    for (size_t i = 0; i < playerCache.len; ++i) {
+        if (strcmp(key, playerCache.indexes[i]) == 0) {
+            return i;
+        }
+    }
+    return -1;
+}
 
 float sumfa(float *a, int l) {
     float r = 0;
@@ -235,10 +288,8 @@ float playerSplit(shoe_t shoe, hand_t hand, hand_t dealerHand, int nsplits)
 {
     //assert();
     hand_t hand1;
-    hand_t hand2;
 
     hand1.cards[0] = hand.cards[0]; hand1.length = 1;
-    hand2.cards[0] = hand.cards[1]; hand2.length = 1;
 
     float ev[10] = {0};
 
@@ -353,7 +404,7 @@ float playerStand(shoe_t shoe, hand_t playerHand, hand_t dealerHand)
     return ev;
 }
 
-float playerHit(shoe_t shoe, hand_t playerHand, hand_t dealerHand)
+float _playerHit(shoe_t shoe, hand_t playerHand, hand_t dealerHand)
 {
     float cev[10] = {0};
     float hitEV = 0;
@@ -394,6 +445,21 @@ float playerHit(shoe_t shoe, hand_t playerHand, hand_t dealerHand)
     }
 
     return sumfa(cev, 10);
+}
+
+float playerHit(shoe_t shoe, hand_t playerHand, hand_t dealerHand)
+{
+    char key[15] = {0};
+    float ev = 0;
+    hashPlayerActionEV(HIT, shoe, playerHand, dealerHand, key);
+    int idx = playerCacheFind(key);
+    if (idx < 0) {
+        ev = _playerHit(shoe, playerHand, dealerHand);
+        playerCacheAdd(key, ev);
+    } else {
+        ev = playerCache.ev[idx];
+    }
+    return ev;
 }
 
 void playerPlay(shoe_t shoe, game_t game, float *ev)
@@ -529,8 +595,8 @@ int main()
 
     handDrawCard(&(game.dealerHand), &shoe, 8);
 
-    handDrawCard(&(game.playerHands[0]), &shoe, 8);
-    handDrawCard(&(game.playerHands[0]), &shoe, 8);
+    handDrawCard(&(game.playerHands[0]), &shoe, 1);
+    handDrawCard(&(game.playerHands[0]), &shoe, 1);
 //    handDrawCard(&(game.dealerHand), &shoe, 9);
 
 
