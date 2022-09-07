@@ -585,18 +585,6 @@ float start(shoe_t shoe, game_t game) {
 }
 
 void initShoe(shoe_t * shoe, int decks) {
-//    for (int i = 0; i < 9; ++i) {
-//        shoe->cards[i] = 0;
-//    }
-//    shoe->cards[2] = 1;
-//    shoe->cards[7] = 1;
-//    shoe->cards[5] = 1;
-
-//    shoe->cards[9] = 2;
-//    shoe->cards[1] = 1;
-//    shoe->cards[3] = 1;
-
-//    shoe->left = 7;
     for (int i = 0; i < 9; ++i) {
         shoe->cards[i] = 4 * decks;
     }
@@ -611,51 +599,49 @@ void initGame(game_t* g)
 }
 
 
-int main()
+// mybjev A5 6 12 1 2 3 4 5 6 7 8 9 10
+
+int main(int argc, char **argv)
 {
+    if (argc < 14) {
+        printf("missing arguments\n");
+        return 1;
+    }
+
+    int ndecks = atoi(argv[3]);
+
     shoe_t shoe;
-    initShoe(&shoe, 8);
+    initShoe(&shoe, ndecks);
 
-    game_t game;
-    initGame(&game);
+    shoe.left = 0;
+    for (int i = 0; i < 10; ++i) {
+        shoe.cards[i] = atoi(argv[i+4]);
+        shoe.left += shoe.cards[i];
+    }
 
-//    start(shoe, game);
-//    hand_t h;
-//    h.length = 2; h.cards[0] = 0; h.cards[1] = 9; h.cards[2] = 0; h.cards[3] = 8;
-//    h.cards[4] = 0;
-//    printf("value: %d\n", handValue(h));
+    hand_t dh; dh.length=strlen(argv[2]);
+    for (int i = 0; i < dh.length; ++i) {
+        dh.cards[i] = argv[2][i] - 48;
+    }
 
-    handDrawCard(&(game.dealerHand), &shoe, 4);
+    hand_t ph; ph.length=strlen(argv[1]);
+    for (int i = 0; i < ph.length; ++i) {
+        ph.cards[i] = argv[1][i] - 48;
+    }
 
-    handDrawCard(&(game.playerHands[0]), &shoe, 0);
-    handDrawCard(&(game.playerHands[0]), &shoe, 0);
-//    handDrawCard(&(game.dealerHand), &shoe, 9);
-
-
-    float standEV = playerStand(shoe, game.playerHands[0], game.dealerHand);
+    float standEV = playerStand(shoe, ph, dh);
     printf("STAND: %.8f\n", standEV);
 
-    float hitEV = playerHit(shoe, game.playerHands[0], game.dealerHand);
+    float hitEV = playerHit(shoe, ph, dh);
     printf("HIT: %.8f\n", hitEV);
 
-    float doubleEV = playerDouble(shoe, game.playerHands[0], game.dealerHand);
+    float doubleEV = playerDouble(shoe, ph, dh);
     printf("DOUBLE: %.8f\n", doubleEV);
 
-    if (game.playerHands[0].cards[0] == game.playerHands[0].cards[1]) {
-        float splitEV = playerSplit(shoe, game.playerHands[0], game.dealerHand, 0);
+    if (ph.length == 2 && ph.cards[0] == ph.cards[1]) {
+        float splitEV = playerSplit(shoe, ph, dh, 0);
         printf("SPLIT: %.8f\n", splitEV);
     }
 
-
-//    handDrawCard(&(game.dealerHand), &shoe, 2);
-//    handDrawCard(&(game.dealerHand), &shoe, 9);
-//    float *prob = calloc(10, sizeof(float));
-//    dealerPlay(shoe, game, prob, 0);
-
-//    for (int i = 0; i < 10; ++i) {
-//        printf("%d: %.18f\n", i+17, prob[i]);
-//    }
-
-//    free(prob);
     return 0;
 }
