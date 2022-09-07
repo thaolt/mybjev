@@ -593,10 +593,10 @@ int main()
 //    h.cards[4] = 0;
 //    printf("value: %d\n", handValue(h));
 
-    handDrawCard(&(game.dealerHand), &shoe, 8);
+    handDrawCard(&(game.dealerHand), &shoe, 4);
 
-    handDrawCard(&(game.playerHands[0]), &shoe, 1);
-    handDrawCard(&(game.playerHands[0]), &shoe, 1);
+    handDrawCard(&(game.playerHands[0]), &shoe, 9);
+    handDrawCard(&(game.playerHands[0]), &shoe, 9);
 //    handDrawCard(&(game.dealerHand), &shoe, 9);
 
 
@@ -609,8 +609,10 @@ int main()
     float doubleEV = playerDouble(shoe, game.playerHands[0], game.dealerHand);
     printf("DOUBLE: %.8f\n", doubleEV);
 
-    float splitEV = playerSplit(shoe, game.playerHands[0], game.dealerHand, 0);
-    printf("SPLIT: %.8f\n", splitEV);
+    if (game.playerHands[0].cards[0] == game.playerHands[0].cards[1]) {
+        float splitEV = playerSplit(shoe, game.playerHands[0], game.dealerHand, 0);
+        printf("SPLIT: %.8f\n", splitEV);
+    }
 
 
 //    handDrawCard(&(game.dealerHand), &shoe, 2);
