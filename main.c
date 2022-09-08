@@ -268,7 +268,7 @@ void dealerPlay(shoe_t shoe, hand_t hand, float* prob, float inputProb) {
     }
 }
 
-float playerSplit(shoe_t shoe, hand_t hand, hand_t dealerHand, int nsplits)
+float _playerSplit(shoe_t shoe, hand_t hand, hand_t dealerHand, int nsplits)
 {
     //assert();
     hand_t hand1;
@@ -309,6 +309,21 @@ float playerSplit(shoe_t shoe, hand_t hand, hand_t dealerHand, int nsplits)
         }
     }
     return sumfa(ev, 10) * 2;
+}
+
+float playerSplit(shoe_t shoe, hand_t playerHand, hand_t dealerHand, int nsplits)
+{
+    float ev = 0;
+    char key[15] = {0};
+    hashPlayerActionEV(SPLIT, shoe, playerHand, dealerHand, key);
+    int idx = playerCacheFind(key);
+    if (idx < 0) {
+        ev = _playerSplit(shoe, playerHand, dealerHand, nsplits);
+        playerCacheAdd(key, ev);
+    } else {
+        ev = playerCache.ev[idx];
+    }
+    return ev;
 }
 
 float _playerDouble(shoe_t shoe, hand_t playerHand, hand_t dealerHand)
