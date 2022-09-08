@@ -486,7 +486,7 @@ float playerHit(shoe_t shoe, hand_t playerHand, hand_t dealerHand)
 
 int main(int argc, char **argv)
 {
-    if (argc < 14) {
+    if (argc < 13) {
         printf("missing arguments\n");
         return 1;
     }
