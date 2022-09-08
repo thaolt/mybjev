@@ -91,8 +91,8 @@ void dealerCacheAdd(char * key, float *prob)
 
     }
 
-    dealerCache.indexes[dealerCache.len] = calloc(11, sizeof(char));
-    memcpy(dealerCache.indexes[dealerCache.len], key, 11 * sizeof(char));
+    dealerCache.indexes[dealerCache.len] = calloc(12, sizeof(char));
+    memcpy(dealerCache.indexes[dealerCache.len], key, 12 * sizeof(char));
     dealerCache.dprob[dealerCache.len] = calloc(10, sizeof(float));
     memcpy(dealerCache.dprob[dealerCache.len], prob, 10 * sizeof(float));
 
@@ -112,11 +112,12 @@ void destroyCache()
 {
 }
 
-void hashShoe(shoe_t shoe, char *hash) {
+void hashShoe(int c, shoe_t shoe, char *hash) {
+    hash[0] = c;
     for (int i = 0; i < 10; ++i) {
-        hash[i] = shoe.cards[i]+1;
+        hash[i+1] = shoe.cards[i]+1;
     }
-    hash[10] = 0;
+    hash[11] = 0;
 }
 
 void hashPlayerActionEV(int action, shoe_t shoe, hand_t playerHand, hand_t dealerHand, char *hash)
@@ -245,7 +246,10 @@ void _dealerPlay(shoe_t shoe, hand_t hand, float* prob, float inputProb)
     }
 
     for (int c = 0; c < 10; ++c) {
-        if (shoe.cards[c] > 0) {
+        if (shoe.cards[c] > 0
+            && ((hand.cards[0] != 0 || hand.length != 1 || c != 9)
+            && (hand.cards[0] != 9 || hand.length != 1 || c != 0))
+        ) {
             shoe_t sh = shoe; // clone
             hand_t h = hand;
             float cp = (float)sh.cards[c]/sh.left; // card probability
@@ -270,8 +274,8 @@ void _dealerPlay(shoe_t shoe, hand_t hand, float* prob, float inputProb)
 
 void dealerPlay(shoe_t shoe, hand_t hand, float* prob, float inputProb) {
     if (inputProb == 0) {
-        char key[11];
-        hashShoe(shoe, key);
+        char key[12];
+        hashShoe(hand.cards[0], shoe, key);
         int idx = dealerCacheFind(key);
         if (idx < 0) {
             _dealerPlay(shoe, hand, prob, inputProb);
@@ -629,14 +633,20 @@ int main(int argc, char **argv)
         ph.cards[i] = argv[1][i] - 48;
     }
 
+    if (ph.length == 2) {
+        printf("SURRENDER: %.8f\n", -0.5);
+    }
+
     float standEV = playerStand(shoe, ph, dh);
     printf("STAND: %.8f\n", standEV);
 
     float hitEV = playerHit(shoe, ph, dh);
     printf("HIT: %.8f\n", hitEV);
 
-    float doubleEV = playerDouble(shoe, ph, dh);
-    printf("DOUBLE: %.8f\n", doubleEV);
+    if (ph.length == 2) {
+        float doubleEV = playerDouble(shoe, ph, dh);
+        printf("DOUBLE: %.8f\n", doubleEV);
+    }
 
     if (ph.length == 2 && ph.cards[0] == ph.cards[1]) {
         float splitEV = playerSplit(shoe, ph, dh, 0);
