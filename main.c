@@ -371,28 +371,6 @@ float playerDouble(shoe_t shoe, hand_t playerHand, hand_t dealerHand)
 
 float _playerStand(shoe_t shoe, hand_t playerHand, hand_t dealerHand)
 {
-    char key[15] = {0};
-    float ev = 0;
-    hashPlayerActionEV(STAND, shoe, playerHand, dealerHand, key);
-    int idx = playerCacheFind(key);
-    if (idx < 0) {
-        ev = _playerStand(shoe, playerHand, dealerHand);
-        playerCacheAdd(key, ev);
-    } else {
-        ev = playerCache.ev[idx];
-    }
-    return ev;
-}
-
-/**
- * @brief playerStand
- * @param shoe
- * @param playerHand
- * @param dealerHand
- * @return float expected value
- */
-float playerStand(shoe_t shoe, hand_t playerHand, hand_t dealerHand)
-{
     float ev = 0;
     shoe_t sh = shoe; // clone
     hand_t ph = playerHand;
@@ -417,6 +395,31 @@ float playerStand(shoe_t shoe, hand_t playerHand, hand_t dealerHand)
 
     return ev;
 }
+
+
+/**
+ * @brief playerStand
+ * @param shoe
+ * @param playerHand
+ * @param dealerHand
+ * @return float expected value
+ */
+float playerStand(shoe_t shoe, hand_t playerHand, hand_t dealerHand)
+{
+    char key[15] = {0};
+    float ev = 0;
+    hashPlayerActionEV(STAND, shoe, playerHand, dealerHand, key);
+    int idx = playerCacheFind(key);
+    if (idx < 0) {
+        ev = _playerStand(shoe, playerHand, dealerHand);
+        playerCacheAdd(key, ev);
+    } else {
+        ev = playerCache.ev[idx];
+    }
+    return ev;
+}
+
+
 
 
 
@@ -478,30 +481,6 @@ float playerHit(shoe_t shoe, hand_t playerHand, hand_t dealerHand)
     return ev;
 }
 
-void playerPlay(shoe_t shoe, game_t game, float *ev)
-{
-    bool options[5] = {false};
-//    float ev[5] = {0};
-
-    for (int a = 0; a < 5; ++a) {
-        if (a == SURRENDER) {
-            ev[SURRENDER] = -0.5;
-        }
-        if (a == STAND) {
-            ev[STAND] = playerStand(shoe, game.playerHands[0], game.dealerHand);
-        }
-        if (a == DOUBLE_DOWN) {
-            ev[DOUBLE_DOWN] = playerDouble(shoe, game.playerHands[0], game.dealerHand);
-        }
-        if (a == HIT) {
-
-        }
-        if (a == SPLIT) {
-
-        }
-    }
-}
-
 
 // mybjev A5 6 12 1 2 3 4 5 6 7 8 9 10
 
@@ -512,15 +491,6 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    int ndecks = atoi(argv[3]);
-
-    shoe_t shoe;
-    shoe.left = 0;
-    for (int i = 0; i < 10; ++i) {
-        shoe.cards[i] = atoi(argv[i+4]);
-        shoe.left += shoe.cards[i];
-    }
-
     hand_t dh; dh.length=strlen(argv[2]);
     for (int i = 0; i < dh.length; ++i) {
         dh.cards[i] = argv[2][i] - 48;
@@ -529,6 +499,13 @@ int main(int argc, char **argv)
     hand_t ph; ph.length=strlen(argv[1]);
     for (int i = 0; i < ph.length; ++i) {
         ph.cards[i] = argv[1][i] - 48;
+    }
+
+    shoe_t shoe;
+    shoe.left = 0;
+    for (int i = 0; i < 10; ++i) {
+        shoe.cards[i] = atoi(argv[i+3]);
+        shoe.left += shoe.cards[i];
     }
 
     if (ph.length == 2) {
