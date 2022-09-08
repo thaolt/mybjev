@@ -69,10 +69,38 @@ float playerDouble(shoe_t shoe, hand_t playerHand, hand_t dealerHand);
 float playerSplit(shoe_t shoe, hand_t hand, hand_t dealerHand, int nsplits);
 int handValue(hand_t h);
 
-void initCache()
-{
 
+
+int min(int a, int b) {
+    return a>b?b:a;
 }
+
+int max(int a, int b) {
+    return a>b?a:b;
+}
+
+float maxf(float a, float b) {
+    return a>b?a:b;
+}
+
+
+int sumia(int *a, int l) {
+    int r = 0;
+    for (int i = 0; i < l; ++i) {
+        r += a[i];
+    }
+    return r;
+}
+
+
+float sumfa(float *a, int l) {
+    float r = 0;
+    for (int i = 0; i < l; ++i) {
+        r += a[i];
+    }
+    return r;
+}
+
 
 void dealerCacheAdd(char * key, float *prob)
 {
@@ -133,15 +161,6 @@ void hashPlayerActionEV(int action, shoe_t shoe, hand_t playerHand, hand_t deale
     hash[14] = 0;
 }
 
-int sumia(int *a, int l) {
-    int r = 0;
-    for (int i = 0; i < l; ++i) {
-        r += a[i];
-    }
-    return r;
-}
-
-
 
 void playerCacheAdd(char * key, float ev)
 {
@@ -173,14 +192,6 @@ int playerCacheFind(char* key) {
     return -1;
 }
 
-float sumfa(float *a, int l) {
-    float r = 0;
-    for (int i = 0; i < l; ++i) {
-        r += a[i];
-    }
-    return r;
-}
-
 int handValue(hand_t h) {
     int na = 0; // number of aces
     int hv = 0;
@@ -198,37 +209,6 @@ int handValue(hand_t h) {
     return hv*100 + sv;
 }
 
-int min(int a, int b) {
-    return a>b?b:a;
-}
-
-int max(int a, int b) {
-    return a>b?a:b;
-}
-
-float maxf(float a, float b) {
-    return a>b?a:b;
-}
-
-float favg(float *a, int l)
-{
-    float r = (float) a[0];
-    for (int i = 1; i < l; ++i) {
-        r += a[i];
-        r /= 2;
-    }
-    return r;
-}
-
-void handAddCard(hand_t *h, int c) {
-    h->cards[h->length] = c;
-    h->length++;
-}
-
-void shoeRmCard(shoe_t *shoe, int c) {
-    shoe->cards[c]--;
-    shoe->left--;
-}
 
 void handDrawCard(hand_t *h, shoe_t *shoe, int c) {
     h->cards[h->length] = c;
@@ -522,86 +502,6 @@ void playerPlay(shoe_t shoe, game_t game, float *ev)
     }
 }
 
-float deal(shoe_t shoe, game_t game, int c1, int c2, int c3, int c4) {
-    float prob = (float)shoe.cards[c1] /shoe.left;
-    shoe.cards[c1]--; shoe.left--;
-    prob *= (float)shoe.cards[c2] / shoe.left;
-    shoe.cards[c2]--; shoe.left--;
-
-    if (c1 != c2) prob *= 2;
-
-    prob *= (float)shoe.cards[c3] / shoe.left;
-    shoe.cards[c3]--; shoe.left--;
-    prob *= (float)shoe.cards[c4] / shoe.left;
-    shoe.cards[c4]--; shoe.left--;
-
-    return prob;
-}
-
-float start(shoe_t shoe, game_t game) {
-    float totalEV = 0;
-    float weights[10][10][10][10] = { 0 };
-    game.playerSplits = 0;
-    for (int c1 = 0; c1 < 10; ++c1) {
-        game.playerHands[0].cards[0] = c1;
-        game.playerHands[0].length = 1;
-        for (int c2 = 0; c2 < 10; ++c2) {
-            game.dealerHand.cards[0] = c2;
-            game.dealerHand.length = 1;
-            for (int c3 = c1; c3 < 10; ++c3) {
-                game.playerHands[0].cards[1] = c3;
-                game.playerHands[0].length = 2;
-                for (int c4 = 0; c4 < 10; ++c4) {
-                    game.dealerHand.cards[2] = c4;
-                    game.dealerHand.length = 2;
-                    weights[c1<c3?c1:c3][c1>c3?c1:c3][c2][c4] += deal(shoe, game,
-                            game.playerHands[0].cards[0],
-                            game.playerHands[0].cards[1],
-                            game.dealerHand.cards[0], game.dealerHand.cards[1]);
-                }
-            }
-        }
-    }
-
-    for (int c1 = 0; c1 < 10; ++c1) {
-        for (int c2 = c1; c2 < 10; ++c2) {
-            for (int c3 = 0; c3 < 10; ++c3) {
-                for (int c4 = 0; c4 < 10; ++c4) {
-                    float ev = 0;
-                    if (c1 == 0 && c2 == 9) {
-                        if ((c3 == 0 && c4 == 9) || (c3 == 9 && c4 == 0)) {
-                            ev = 0; // tie BJ
-                        } else {
-                            ev = 1.5;
-                        }
-                    } else if ((c3 == 0 && c4 == 9) || (c3 == 9 && c4 == 0)) {
-                        ev = -1;
-                    } else {
-//                        ev = playerTurn(shoe, game);
-                    }
-                    printf("%d, %d, %d, %d, %.10f, %0.2f\n", c1+1, c2+1, c3+1, c4+1, weights[c1][c2][c3][c4], ev);
-                }
-            }
-        }
-    }
-
-    return totalEV;
-}
-
-void initShoe(shoe_t * shoe, int decks) {
-    for (int i = 0; i < 9; ++i) {
-        shoe->cards[i] = 4 * decks;
-    }
-    shoe->cards[9] = 4*4*decks;
-    shoe->left = 52*decks;
-}
-
-void initGame(game_t* g)
-{
-    g->dealerHand.length = 0;
-    g->playerSplits = 0;
-}
-
 
 // mybjev A5 6 12 1 2 3 4 5 6 7 8 9 10
 
@@ -615,8 +515,6 @@ int main(int argc, char **argv)
     int ndecks = atoi(argv[3]);
 
     shoe_t shoe;
-    initShoe(&shoe, ndecks);
-
     shoe.left = 0;
     for (int i = 0; i < 10; ++i) {
         shoe.cards[i] = atoi(argv[i+4]);
