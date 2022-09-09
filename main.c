@@ -3,7 +3,7 @@
 #include <math.h>
 #include <stdbool.h>
 #include <string.h>
-#include <assert.h>
+#include "tinycthread.h"
 
 
 enum {
@@ -70,6 +70,9 @@ float playerSplit(shoe_t shoe, hand_t hand, hand_t dealerHand, int nsplits);
 int handValue(hand_t h);
 
 
+mtx_t mtxPlayerCache;
+mtx_t mtxDealerCache;
+
 
 int min(int a, int b) {
     return a>b?b:a;
@@ -104,6 +107,7 @@ float sumfa(float *a, int l) {
 
 void dealerCacheAdd(char * key, float *prob)
 {
+    mtx_lock(&mtxDealerCache);
     if (dealerCache.len == 0) {
         dealerCache.indexes = calloc(1, sizeof(char*));
         dealerCache.dprob = calloc(1, sizeof(float*));
@@ -125,6 +129,7 @@ void dealerCacheAdd(char * key, float *prob)
     memcpy(dealerCache.dprob[dealerCache.len], prob, 10 * sizeof(float));
 
     dealerCache.len++;
+    mtx_unlock(&mtxDealerCache);
 }
 
 int dealerCacheFind(char* key) {
@@ -164,6 +169,7 @@ void hashPlayerActionEV(int action, shoe_t shoe, hand_t playerHand, hand_t deale
 
 void playerCacheAdd(char * key, float ev)
 {
+    mtx_lock(&mtxPlayerCache);
     if (playerCache.len == 0) {
         playerCache.indexes = calloc(1, sizeof(char*));
         playerCache.ev = calloc(1, sizeof(float));
@@ -181,6 +187,7 @@ void playerCacheAdd(char * key, float ev)
     playerCache.ev[playerCache.len] = ev;
 
     playerCache.len++;
+    mtx_unlock(&mtxPlayerCache);
 }
 
 int playerCacheFind(char* key) {
@@ -268,46 +275,95 @@ void dealerPlay(shoe_t shoe, hand_t hand, float* prob, float inputProb) {
     }
 }
 
+typedef struct {
+    int c;
+    shoe_t sh;
+    hand_t ph;
+    hand_t dh;
+    int nsplits;
+    float *ret;
+} playerSplitThreadArgument_t;
+
+
+int _playerSplitThread(void* varg)
+{
+    playerSplitThreadArgument_t *arg = (playerSplitThreadArgument_t *) varg;
+
+    float cp = (float)(arg->sh.cards[arg->c])/arg->sh.left;
+    arg->ph.length = 1;
+    handDrawCard(&(arg->ph), &(arg->sh), arg->c);
+    int h1v = handValue(arg->ph);
+    h1v = max(h1v/100,h1v%100);
+    if (h1v == 21) {
+        float *dprob = calloc(10, sizeof(float));
+        dealerPlay(arg->sh, arg->ph, dprob, 0);
+        for (int i = 0; i < 10; ++i) {
+            int dhv = i+17;
+            if (h1v > dhv || dhv > 21) {
+                arg->ret[arg->c] += 1 * dprob[i];
+            }
+        }
+        free(dprob);
+    } else {
+        float standEV = playerStand(arg->sh, arg->ph, arg->dh);
+        float hitEV = playerHit(arg->sh, arg->ph, arg->dh);
+        float doubleEV = playerDouble(arg->sh, arg->ph, arg->dh);
+        arg->ret[arg->c] = maxf(maxf(standEV, hitEV), doubleEV);
+        if (arg->c == arg->ph.cards[0] && arg->nsplits < 3) {
+            float splitEV = playerSplit(arg->sh, arg->ph, arg->dh, arg->nsplits + 1);
+            arg->ret[arg->c] = maxf(arg->ret[arg->c], splitEV);
+        }
+    }
+    arg->ret[arg->c] *= cp;
+    return 0;
+}
+
 float _playerSplit(shoe_t shoe, hand_t hand, hand_t dealerHand, int nsplits)
 {
-    //assert();
     hand_t hand1;
 
     hand1.cards[0] = hand.cards[0]; hand1.length = 1;
 
     float ev[10] = {0};
+    thrd_t threads[10];
+    float **ret = calloc(10, sizeof(float*));
+
+    for (int i = 0; i < 10; i++) {
+        ret[i] = calloc(10, sizeof(float));
+    }
 
     for (int c = 0; c < 10; ++c) {
         if (shoe.cards[c] > 0) {
-            shoe_t sh = shoe; // clone
-            hand_t h1 = hand1;
-            float cp = (float)sh.cards[c]/sh.left;
-            handDrawCard(&h1, &sh, c);
-            int h1v = handValue(h1);
-            h1v = max(h1v/100,h1v%100);
-            if (h1v == 21) {
-                float *dprob = calloc(10, sizeof(float));
-                dealerPlay(sh, h1, dprob, 0);
-                for (int i = 0; i < 10; ++i) {
-                    int dhv = i+17;
-                    if (h1v > dhv || dhv > 21) {
-                        ev[c] += 1 * dprob[i];
-                    }
-                }
-                free(dprob);
-            } else {
-                float standEV = playerStand(sh, h1, dealerHand);
-                float hitEV = playerHit(sh, h1, dealerHand);
-                float doubleEV = playerDouble(sh, h1, dealerHand);
-                ev[c] = maxf(maxf(standEV, hitEV), doubleEV);
-                if (c == h1.cards[0] && nsplits < 3) {
-                    float splitEV = playerSplit(sh, h1, dealerHand, nsplits + 1);
-                    ev[c] = maxf(ev[c], splitEV);
-                }
-            }
-            ev[c] *= cp;
+            playerSplitThreadArgument_t arg;
+            arg.c = c;
+            arg.sh = shoe; // clone
+            arg.ph = hand;
+            arg.dh = dealerHand;
+            arg.nsplits = nsplits;
+            arg.ret = ret[c];
+            thrd_create(&threads[c], _playerSplitThread, (void*) &arg);
         }
     }
+
+    thrd_join(threads[0], NULL);
+    thrd_join(threads[1], NULL);
+    thrd_join(threads[2], NULL);
+    thrd_join(threads[3], NULL);
+    thrd_join(threads[4], NULL);
+    thrd_join(threads[5], NULL);
+    thrd_join(threads[6], NULL);
+    thrd_join(threads[7], NULL);
+    thrd_join(threads[8], NULL);
+    thrd_join(threads[9], NULL);
+
+    for (int i = 0; i < 10; i++) {
+        for (int j = 0; j < 10; ++j) {
+            ev[i] += ret[i][j];
+        }
+        free(ret[i]);
+    }
+    free(ret);
+
     return sumfa(ev, 10) * 2;
 }
 
@@ -506,14 +562,14 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    hand_t dh; dh.length=strlen(argv[2]);
-    for (int i = 0; i < dh.length; ++i) {
-        dh.cards[i] = argv[2][i] - 48;
-    }
-
     hand_t ph; ph.length=strlen(argv[1]);
     for (int i = 0; i < ph.length; ++i) {
         ph.cards[i] = argv[1][i] - 48;
+    }
+
+    hand_t dh; dh.length=strlen(argv[2]);
+    for (int i = 0; i < dh.length; ++i) {
+        dh.cards[i] = argv[2][i] - 48;
     }
 
     shoe_t shoe;
