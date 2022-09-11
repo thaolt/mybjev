@@ -17,6 +17,7 @@ gcc -O2 -fPIC -o mybjev.exe ./mybjev.c
 **card value count from 0**
 
 A -> 0
+
 TJQK -> 9
 
 for example: player hand 55 vs dealer 6 (single deck)
