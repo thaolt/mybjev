@@ -75,4 +75,4 @@ Hit	-0.535975
 Double	-1.071950
 ```
 
-If anyone could help to correct the code for this screnario I would be very grateful
+If anyone could help to correct the code for this scenario I would be very grateful
