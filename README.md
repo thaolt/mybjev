@@ -61,9 +61,9 @@ playerhand T6 vs dealer T/Face (8 decks)
 
 ```
 SURRENDER: -0.50000000
-STAND: -0.54247350
-HIT: -0.50916648
-DOUBLE: -1.01833296
+STAND: -0.49837753
+HIT: -0.54585046
+DOUBLE: -1.09170091
 ```
 
 while Wizardofodds calculator produces following results:
