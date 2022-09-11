@@ -5,7 +5,7 @@ my attempt to calculate exact expected value of blackjack hands using recursive 
 # compile
 
 ```bash
-gcc -O2 -fPIC -o mybjev.exe ./mybjev.c
+gcc -O2 -fPIC -o mybjev.exe ./main.c
 ```
 
 # how to use
