@@ -293,7 +293,7 @@ float _playerSplit(shoe_t shoe, hand_t hand, hand_t dealerHand, int nsplits)
                 float hitEV = playerHit(sh, h1, dealerHand);
                 float doubleEV = playerDouble(sh, h1, dealerHand);
                 ev[c] = maxf(maxf(standEV, hitEV), doubleEV);
-                if (c == h1.cards[0] && nsplits < 2) {
+                if (c == h1.cards[0] && nsplits < 1) {
                     float splitEV = _playerSplit(sh, h1, dealerHand, nsplits + 1);
                     ev[c] = maxf(ev[c], splitEV);
                 }
@@ -534,6 +534,7 @@ int main(int argc, char **argv)
         float splitEV = playerSplit(shoe, ph, dh, 0);
         printf("SPLIT: %.8f\n", splitEV);
     }
+
 
     return 0;
 }
