@@ -50,29 +50,3 @@ STAND: -0.54247350
 HIT: -0.50916648
 DOUBLE: -1.01833296
 ```
-
-however, I don't know what wrong with this calculation:
-
-playerhand T6 vs dealer T/Face (8 decks)
-
-```
-./mybjev.exe 95 9 32 32 32 32 32 32 32 32 32 128
-```
-
-```
-SURRENDER: -0.50000000
-STAND: -0.49837753
-HIT: -0.54585046
-DOUBLE: -1.09170091
-```
-
-while Wizardofodds calculator produces following results:
-
-```
-SURRENDER	-0.500000
-Stand	-0.540827
-Hit	-0.535975
-Double	-1.071950
-```
-
-If anyone could help to correct the code for this scenario I would be very grateful
