@@ -141,7 +141,7 @@ void hashDealerPlay(hand_t dh, shoe_t shoe, char *hash)
 {
     int dhv = handValue(dh);
     hash[0] = dhv/100;
-    hash[1] = dhv%100;
+    hash[1] = (dhv%100) + 1;
     for (int i = 0; i < 10; ++i) {
         hash[i+2] = shoe.cards[i]+1;
     }
@@ -221,7 +221,7 @@ void _dealerPlay(shoe_t shoe, hand_t hand, float* prob, float inputProb)
 {
     int dhv = handValue(hand);
     if (dhv / 100 >= 17 || dhv % 100 >= 17) {
-        prob[ max(dhv % 100, dhv / 100)-17 ] = 1;
+        prob[ max(dhv % 100, dhv / 100)-17 ] = 1*inputProb;
         return;
     }
 
@@ -238,30 +238,28 @@ void _dealerPlay(shoe_t shoe, hand_t hand, float* prob, float inputProb)
             int hv = ndhv / 100;
             int sv = ndhv % 100;
             if (sv >= 17 || hv >= 17) {
-                if (inputProb == 0)
-                    prob[ max(hv,sv)-17 ] += cp;
-                else
-                    prob[ max(hv,sv)-17 ] += inputProb * cp;
+                prob[ max(hv,sv)-17 ] += inputProb * cp;
             } else {
-                if (inputProb == 0)
-                    _dealerPlay(sh, h, prob, cp);
-                else
-                    _dealerPlay(sh, h, prob, inputProb * cp);
+                _dealerPlay(sh, h, prob, inputProb * cp);
             }
         }
     }
 }
 
 void dealerPlay(shoe_t shoe, hand_t hand, float* prob, float inputProb) {
-    char key[13];
-    hashDealerPlay(hand, shoe, key);
-    int idx = dealerCacheFind(key);
-    if (idx < 0) {
-        _dealerPlay(shoe, hand, prob, inputProb);
-        dealerCacheAdd(key, prob);
-    } else {
-        memcpy(prob, dealerCache.dprob[idx], sizeof(float) * 10);
+    if (inputProb == 1) {
+        char key[13];
+        hashDealerPlay(hand, shoe, key);
+        int idx = dealerCacheFind(key);
+        if (idx < 0) {
+            _dealerPlay(shoe, hand, prob, inputProb);
+            dealerCacheAdd(key, prob);
+        } else {
+            memcpy(prob, dealerCache.dprob[idx], sizeof(float) * 10);
+        }
+        return;
     }
+    _dealerPlay(shoe, hand, prob, inputProb);
 }
 
 float _playerSplit(shoe_t shoe, hand_t hand, hand_t dealerHand, int nsplits)
@@ -282,7 +280,7 @@ float _playerSplit(shoe_t shoe, hand_t hand, hand_t dealerHand, int nsplits)
             h1v = max(h1v/100,h1v%100);
             if (h1v == 21) {
                 float *dprob = calloc(10, sizeof(float));
-                dealerPlay(sh, dealerHand, dprob, 0);
+                dealerPlay(sh, dealerHand, dprob, 1);
                 for (int i = 0; i < 10; ++i) {
                     int dhv = i+17;
                     if (h1v > dhv || dhv > 21) {
@@ -313,7 +311,7 @@ float playerSplit(shoe_t shoe, hand_t playerHand, hand_t dealerHand, int nsplits
     char key[15] = {0};
     hashPlayerActionEV(SPLIT, shoe, playerHand, dealerHand, key);
     int idx = playerCacheFind(key);
-    if (idx < 0) {
+    if (idx < 0 || nsplits > 0) {
         ev = _playerSplit(shoe, playerHand, dealerHand, nsplits);
         playerCacheAdd(key, ev);
     } else {
@@ -339,7 +337,7 @@ float _playerDouble(shoe_t shoe, hand_t playerHand, hand_t dealerHand)
                 ev[c] = -2;
             } else {
                 float *dprob = calloc(10, sizeof(float));
-                dealerPlay(sh, dh, dprob, 0);
+                dealerPlay(sh, dh, dprob, 1);
                 for (int i = 0; i < 10; ++i) {
                     int dhv = i+17;
                     if (v > dhv || dhv > 21) {
@@ -389,9 +387,9 @@ float _playerStand(shoe_t shoe, hand_t playerHand, hand_t dealerHand)
     int v = handValue(ph);
     v = max(v/100, v%100);
 
-    float *dprob = calloc(10, sizeof(float));
+    float dprob[10] = {0};
 
-    dealerPlay(sh, dh, dprob, 0);
+    dealerPlay(sh, dh, dprob, 1);
 
     for (int i = 0; i < 10; ++i) {
         int dhv = i+17;
@@ -401,8 +399,6 @@ float _playerStand(shoe_t shoe, hand_t playerHand, hand_t dealerHand)
             ev += -1 * dprob[i];
         }
     }
-
-    free(dprob);
 
     return ev;
 }
@@ -452,7 +448,7 @@ float _playerHit(shoe_t shoe, hand_t playerHand, hand_t dealerHand)
 
             if (v == 21) {
                 float *dprob = calloc(10, sizeof(float));
-                dealerPlay(sh, dh, dprob, 0);
+                dealerPlay(sh, dh, dprob, 1);
                 cev[c] = 0;
                 for (int i = 0; i < 10; ++i) {
                     int dhv = i+17;
