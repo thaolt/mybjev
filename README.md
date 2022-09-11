@@ -56,7 +56,7 @@ however, I don't know what wrong with this calculation:
 playerhand T6 vs dealer T/Face (8 decks)
 
 ```
-./mybjev.exe 95 8 32 32 32 32 32 32 32 32 32 128
+./mybjev.exe 95 9 32 32 32 32 32 32 32 32 32 128
 ```
 
 ```
