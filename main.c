@@ -233,6 +233,14 @@ void _dealerPlay(shoe_t shoe, hand_t hand, float* prob, float inputProb)
             shoe_t sh = shoe; // clone
             hand_t h = hand;
             float cp = (float)sh.cards[c]/sh.left; // card probability
+
+            if (h.cards[0] == 0 && h.length == 1) {
+                cp = (float)sh.cards[c]/(sh.left-sh.cards[9]);
+            }
+            if (h.cards[0] == 9 && h.length == 1) {
+                cp = (float)sh.cards[c]/(sh.left-sh.cards[0]);
+            }
+
             handDrawCard(&h, &sh, c);
             int ndhv = handValue(h);
             int hv = ndhv / 100;
