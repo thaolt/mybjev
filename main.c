@@ -289,6 +289,8 @@ float _playerDouble(shoe_t shoe, hand_t playerHand, hand_t dealerHand)
                         ev[c] += 2 * dprob[i];
                     } else if (v < dhv) {
                         ev[c] += -2 * dprob[i];
+                    } else if (dhv == 21 && dh.length == 2) {
+                        ev[c] += -2 * dprob[i];
                     }
                 }
                 free(dprob);
@@ -341,6 +343,8 @@ float _playerStand(shoe_t shoe, hand_t playerHand, hand_t dealerHand)
         if (v > dhv || dhv > 21) {
             ev += 1 * dprob[i];
         } else if (v < dhv) {
+            ev += -1 * dprob[i];
+        } else if (dhv == 21 && dh.length == 2) {
             ev += -1 * dprob[i];
         }
     }
@@ -397,6 +401,8 @@ float _playerHit(shoe_t shoe, hand_t playerHand, hand_t dealerHand)
                     if (v > dhv || dhv > 21) {
                         cev[c] += 1 * dprob[i];
                     } else if (v < dhv) {
+                        cev[c] += -1 * dprob[i];
+                    } else if (dhv == 21 && dh.length == 2) {
                         cev[c] += -1 * dprob[i];
                     }
                 }
