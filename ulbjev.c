@@ -370,6 +370,11 @@ float _playerHit(shoe_t shoe, hand_t playerHand, hand_t dealerHand)
                 hitEV = playerHit(sh, ph, dh);
                 standEV = playerStand(sh, ph, dh);
                 cev[c] = maxf(hitEV, standEV);
+                cev[c] = maxf(hitEV, standEV);
+                if (ph.length == 2) {
+                    float doubleEV = playerDouble(sh, ph, dh);
+                    cev[c] = maxf(cev[c], doubleEV);
+                }
             }
             cev[c] *= cp;
         }
