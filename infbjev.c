@@ -10,6 +10,7 @@ enum {
     STAND,
     HIT,
     DOUBLE_DOWN,
+    SPLIT,
     DEALER
 };
 
@@ -65,6 +66,7 @@ void playerPlay(shoe_t shoe, game_t game, float *ev);
 float playerHit(shoe_t shoe, hand_t playerHand, hand_t dealerHand);
 float playerStand(shoe_t shoe, hand_t playerHand, hand_t dealerHand);
 float playerDouble(shoe_t shoe, hand_t playerHand, hand_t dealerHand);
+float playerSplit(shoe_t shoe, hand_t hand, hand_t dealerHand, int nsplits);
 int handValue(hand_t h);
 float _dealerPlayEV(shoe_t shoe, hand_t playerHand, hand_t dealerHand);
 float dealerPlayEV(shoe_t shoe, hand_t playerHand, hand_t dealerHand);
@@ -267,6 +269,50 @@ void dealerPlay(shoe_t shoe, hand_t hand, float* prob, float inputProb) {
     _dealerPlay(shoe, hand, prob, inputProb);
 }
 
+float _playerSplit(shoe_t shoe, hand_t hand, hand_t dealerHand, int nsplits)
+{
+    hand_t hand1;
+
+    hand1.cards[0] = hand.cards[0]; hand1.length = 1;
+
+    float ev[10] = {0};
+
+    for (int c = 0; c < 10; ++c) {
+        if (shoe.cards[c] > 0) {
+            shoe_t sh = shoe; // clone
+            hand_t h1 = hand1;
+            float cp = (float)sh.cards[c]/sh.left;
+            handDrawCard(&h1, &sh, c);
+            int h1v = handValue(h1);
+            h1v = max(h1v/100,h1v%100);
+            if (h1v == 21 || h1.cards[0]==0) {
+                ev[c] += dealerPlayEV(sh, h1, dealerHand); // hidden blackjack
+            } else {
+                float standEV = playerStand(sh, h1, dealerHand);
+                float hitEV = playerHit(sh, h1, dealerHand);
+                ev[c] = maxf(standEV, hitEV);
+            }
+            ev[c] *= cp;
+        }
+    }
+    return sumfa(ev, 10) * 2;
+}
+
+float playerSplit(shoe_t shoe, hand_t playerHand, hand_t dealerHand, int nsplits)
+{
+    float ev = 0;
+
+    char key[15] = {0};
+    hashPlayerActionEV(SPLIT, shoe, playerHand, dealerHand, key);
+    int idx = playerCacheFind(key);
+    if (idx < 0 || nsplits > 0) {
+        ev = _playerSplit(shoe, playerHand, dealerHand, nsplits);
+        playerCacheAdd(key, ev);
+    } else {
+        ev = playerCache.ev[idx];
+    }
+    return ev;
+}
 
 float _playerDouble(shoe_t shoe, hand_t playerHand, hand_t dealerHand)
 {
@@ -362,7 +408,7 @@ float _playerHit(shoe_t shoe, hand_t playerHand, hand_t dealerHand)
             int v = handValue(ph);
             v = max(v/100, v%100);
 
-            if (v == 21 || (ph.length == 2 && ph.cards[0] == 0)) {
+            if (v <= 21 && ph.length >= 6) { // 6 cards charlie
                 cev[c] = dealerPlayEV(sh, ph, dh);
             } else if (v > 21) {
                 cev[c] = -1;
@@ -400,6 +446,10 @@ float _dealerPlayEV(shoe_t sh, hand_t ph, hand_t dh)
     int phv = handValue(ph);
     phv = max(phv/100, phv%100);
 
+    // six cards Charlie always win even dealer has BJ
+    if (ph.length >= 6 && phv <= 21) return 1.0;
+
+    // else
     float *dprob = calloc(11, sizeof(float));
     dealerPlay(sh, dh, dprob, 1);
     for (int i = 0; i < 10; ++i) {
@@ -431,8 +481,7 @@ float dealerPlayEV(shoe_t shoe, hand_t playerHand, hand_t dealerHand)
     return ev;
 }
 
-
-// EZUGI UNLIMITED BJ
+// EVOLUTION INFINITE BJ
 
 int main(int argc, char **argv)
 {
@@ -458,21 +507,26 @@ int main(int argc, char **argv)
         shoe.left += shoe.cards[i];
     }
 
-    if (ph.length > 1) {
-        float standEV = playerStand(shoe, ph, dh);
-        printf("STAND: %.8f\n", standEV);
-
-        float hitEV = playerHit(shoe, ph, dh);
-        printf("HIT: %.8f\n", hitEV);
-
-        if (ph.length == 2) {
-            float doubleEV = playerDouble(shoe, ph, dh);
-            printf("DOUBLE: %.8f\n", doubleEV);
-        }
-    } else {
-        float takeEV = playerHit(shoe, ph, dh);
-        printf("TAKE: %.8f\n", takeEV);
+    if (ph.length == 2) {
+        printf("SURRENDER: %.8f\n", -0.5);
     }
+
+    float standEV = playerStand(shoe, ph, dh);
+    printf("STAND: %.8f\n", standEV);
+
+    float hitEV = playerHit(shoe, ph, dh);
+    printf("HIT: %.8f\n", hitEV);
+
+    if (ph.length == 2) {
+        float doubleEV = playerDouble(shoe, ph, dh);
+        printf("DOUBLE: %.8f\n", doubleEV);
+    }
+
+    if (ph.length == 2 && ph.cards[0] == ph.cards[1]) {
+        float splitEV = playerSplit(shoe, ph, dh, 0);
+        printf("SPLIT: %.8f\n", splitEV);
+    }
+
 
     return 0;
 }
